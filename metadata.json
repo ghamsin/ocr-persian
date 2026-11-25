@@ -1,0 +1,6 @@
+{
+  "name": "نویسا — استخراج هوشمند متن فارسی از تصویر (OCR)",
+  "description": "سامانه تخصصی تبدیل عکس و اسکن اسناد، کتاب‌ها، دست‌خط و جداول به متن قابل ویرایش فارسی با موتور ویراستار و اصلاح خودکار نیم‌فاصله.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
