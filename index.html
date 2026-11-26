@@ -11,8 +11,27 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Preload Persian (Vazirmatn) and Monospace (JetBrains Mono) fonts for GitHub Pages -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap"
+    />
     <!-- Relative path for full GitHub Pages root & subdirectory compatibility -->
+    <link rel="preload" as="style" href="./stylesheet.css" />
     <link rel="stylesheet" href="./stylesheet.css" />
   </head>
   <body>
@@ -105,11 +124,19 @@
             </div>
           </div>
 
-          <!-- Section 2: Specialized Persian OCR Mode -->
+          <!-- Section 2: Specialized Persian + English OCR Mode -->
           <div class="field-section">
             <div class="section-header-row">
-              <span class="section-label">۲. حالت تخصصی بازشناسی متن فارسی</span>
-              <span class="section-hint">OCR Mode</span>
+              <span class="section-label">۲. زبان و حالت تخصصی بازشناسی متن</span>
+              <span class="section-hint">FA + EN OCR</span>
+            </div>
+            <div class="input-group" style="margin-bottom: 0.75rem;">
+              <label>زبان تشخیص متن در تصویر:</label>
+              <div class="preset-bar" role="group" aria-label="زبان تشخیص متن در تصویر">
+                <button type="button" class="preset-btn active" data-lang="bilingual" style="flex: 1;">فارسی + انگلیسی</button>
+                <button type="button" class="preset-btn" data-lang="persian" style="flex: 1;">فقط فارسی</button>
+                <button type="button" class="preset-btn" data-lang="english-to-persian" style="flex: 1;">انگلیسی به فارسی</button>
+              </div>
             </div>
             <div class="preset-grid-2" style="margin-bottom: 0.75rem;">
               <button type="button" class="preset-btn active" data-mode="standard">متن چاپی و کتاب</button>
@@ -122,7 +149,7 @@
               <input
                 type="text"
                 id="customPromptInput"
-                placeholder="مثال: فقط جدول قیمت‌ها را استخراج کن یا پاورقی را نادیده بگیر..."
+                placeholder="مثال: اصطلاحات انگلیسی را دقیق حفظ کن یا فقط جدول قیمت‌ها را استخراج کن..."
               />
             </div>
           </div>

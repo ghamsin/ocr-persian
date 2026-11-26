@@ -92,3 +92,14 @@ test('fixPersianZwnj joins compound words like بی‌نظیری, نشان‌د�
   assert.ok(fixed.count >= 4);
 });
 
+test('toPersianDigits preserves digits inside English technical tokens and URLs in bilingual Persian+English text', () => {
+  const bilingual = 'پشتیبانی از استاندارد UTF-8 و نسخه v2.4 و ISO-9001 در سال 1404 با لینک https://example.com/v3/docs';
+  const result = toPersianDigits(bilingual);
+  assert.equal(
+    result.text,
+    'پشتیبانی از استاندارد UTF-8 و نسخه v2.4 و ISO-9001 در سال ۱۴۰۴ با لینک https://example.com/v3/docs'
+  );
+  assert.equal(result.count, 4);
+});
+
+

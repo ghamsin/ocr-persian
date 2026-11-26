@@ -83,32 +83,47 @@ function loadTesseractScript(): Promise<TesseractGlobal> {
   });
 }
 
+export type BrowserOcrLanguage = 'bilingual' | 'persian' | 'english-to-persian';
+
+export function resolveTesseractLanguage(language: BrowserOcrLanguage = 'bilingual'): string {
+  if (language === 'persian') return 'fas';
+  if (language === 'english-to-persian') return 'eng+fas';
+  return 'fas+eng';
+}
+
 /**
  * Runs client-side Persian + English OCR directly in the user's browser using WebAssembly
  * when the app is hosted on a static server (such as GitHub Pages) without a Node backend.
  */
 export async function runBrowserPersianOcr(
   imageDataUrl: string,
-  onProgress?: (statusText: string) => void
+  onProgress?: (statusText: string) => void,
+  ocrLanguage: BrowserOcrLanguage = 'bilingual'
 ): Promise<ClientOcrResult> {
-  onProgress?.('در حال راه‌اندازی موتور بازشناسی فارسی تحت مرورگر (حالت استاتیک GitHub Pages)...');
+  const tessLang = resolveTesseractLanguage(ocrLanguage);
+  onProgress?.(
+    `در حال راه‌اندازی موتور بازشناسی دوزبانه (${tessLang}) تحت مرورگر (حالت استاتیک GitHub Pages)...`
+  );
   const Tesseract = await loadTesseractScript();
-  const worker = await Tesseract.createWorker('fas');
+  const worker = await Tesseract.createWorker(tessLang);
 
   try {
-    onProgress?.('در حال اسکن و استخراج نویسه‌های فارسی از تصویر...');
+    onProgress?.('در حال اسکن و استخراج نویسه‌های فارسی و انگلیسی از تصویر...');
     const { data } = await worker.recognize(imageDataUrl);
     const rawText = (data.text || '').trim();
     const cleaned = applyFullPersianVirastar(rawText);
 
     return {
       extractedText: cleaned.text,
-      detectedDocumentType: 'سند فارسی (پردازش مستقیم مرورگر)',
+      detectedDocumentType:
+        ocrLanguage === 'persian'
+          ? 'سند فارسی (پردازش مستقیم مرورگر)'
+          : 'سند دوزبانه فارسی و انگلیسی (پردازش مستقیم مرورگر)',
       confidenceEstimate:
         typeof data.confidence === 'number' && data.confidence > 0
           ? Math.min(99, Math.max(75, Math.round(data.confidence)))
           : 92,
-      notes: 'استخراج‌شده با موتور OCR تحت مرورگر و بهینه‌سازی‌شده با ویراستار فارسی.',
+      notes: 'استخراج‌شده با موتور OCR دوزبانه فارسی+انگلیسی تحت مرورگر و بهینه‌سازی‌شده با ویراستار فارسی.',
     };
   } finally {
     await worker.terminate();

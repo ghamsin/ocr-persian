@@ -98,3 +98,11 @@ test('safeParseJsonResponse gracefully handles HTML 404 pages returned by GitHub
   assert.equal(jsonParsed.data?.extractedText, 'سلام دنیا');
 });
 
+test('resolveTesseractLanguage selects bilingual fas+eng by default and respects language overrides', async () => {
+  const { resolveTesseractLanguage } = await import('./clientSideOcr');
+  assert.equal(resolveTesseractLanguage('bilingual'), 'fas+eng');
+  assert.equal(resolveTesseractLanguage('persian'), 'fas');
+  assert.equal(resolveTesseractLanguage('english-to-persian'), 'eng+fas');
+});
+
+

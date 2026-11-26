@@ -14,6 +14,12 @@ const MODE_LABELS = {
   poetry: 'شعر و حفظ اعراب',
 };
 
+const LANG_LABELS = {
+  bilingual: 'فارسی + انگلیسی',
+  persian: 'فقط فارسی',
+  'english-to-persian': 'انگلیسی به فارسی',
+};
+
 const PERSIAN_SAMPLE_DOCUMENTS = [
   {
     id: 'book-article',
@@ -127,6 +133,7 @@ const appState = {
   documentTitle: PERSIAN_SAMPLE_DOCUMENTS[0].title,
   categoryLabel: PERSIAN_SAMPLE_DOCUMENTS[0].categoryLabel,
   mode: PERSIAN_SAMPLE_DOCUMENTS[0].mode,
+  ocrLanguage: 'bilingual', // 'bilingual' | 'persian' | 'english-to-persian'
   imageUrl: '',
   mimeType: 'image/png',
   confidence: PERSIAN_SAMPLE_DOCUMENTS[0].confidence,
@@ -167,18 +174,28 @@ function unifyPersianCharacters(input) {
 
 function toPersianDigits(input) {
   let count = 0;
-  let result = input.replace(/[0-9]/g, (d) => {
-    count++;
-    return PERSIAN_DIGITS[Number(d)];
-  });
-  result = result.replace(/[٠-٩]/g, (d) => {
-    const idx = ARABIC_DIGITS.indexOf(d);
-    if (idx !== -1) {
-      count++;
-      return PERSIAN_DIGITS[idx];
+  // Preserve digits embedded inside English/Latin tokens and URLs (e.g., UTF-8, v2.4, ISO-9001)
+  const result = input.replace(
+    /https?:\/\/[^\s]+|[A-Za-z][A-Za-z0-9._/-]*|[0-9]+|[٠-٩]+/g,
+    (token) => {
+      if (/^(?:https?:\/\/|[A-Za-z])/.test(token)) {
+        return token;
+      }
+      return token
+        .replace(/[0-9]/g, (d) => {
+          count++;
+          return PERSIAN_DIGITS[Number(d)];
+        })
+        .replace(/[٠-٩]/g, (d) => {
+          const idx = ARABIC_DIGITS.indexOf(d);
+          if (idx !== -1) {
+            count++;
+            return PERSIAN_DIGITS[idx];
+          }
+          return d;
+        });
     }
-    return d;
-  });
+  );
   return { text: result, count };
 }
 
@@ -690,7 +707,9 @@ function updateAllMetricsAndViews() {
     kpiArabicCharsMeta.textContent = `حروف عربی (ي/ك) باقی‌مانده: ${stats.arabicCharWarnings}`;
   }
   if (kpiConfidence) kpiConfidence.textContent = `${appState.confidence}%`;
-  if (kpiActiveModeMeta) kpiActiveModeMeta.textContent = `حالت فعال: ${MODE_LABELS[appState.mode] || 'استاندارد'}`;
+  if (kpiActiveModeMeta) {
+    kpiActiveModeMeta.textContent = `${LANG_LABELS[appState.ocrLanguage] || 'فارسی + انگلیسی'} · ${MODE_LABELS[appState.mode] || 'استاندارد'}`;
+  }
 
   // 2. Update Virastar Button Counts
   const fixZwnjBtn = document.getElementById('fixZwnjBtn');
@@ -775,6 +794,9 @@ function syncPresetActiveButtons() {
   });
   document.querySelectorAll('[data-mode]').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-mode') === appState.mode);
+  });
+  document.querySelectorAll('[data-lang]').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-lang') === appState.ocrLanguage);
   });
 }
 
@@ -893,22 +915,35 @@ function loadTesseractForBrowserFallback() {
   });
 }
 
+function resolveTesseractLang(lang) {
+  if (lang === 'persian') return 'fas';
+  if (lang === 'english-to-persian') return 'eng+fas';
+  return 'fas+eng';
+}
+
 async function runClientSideBrowserOcr(imageDataUrl) {
-  showStatusBanner('در حال راه‌اندازی موتور بازشناسی فارسی تحت مرورگر (حالت استاتیک GitHub Pages)...', 'info');
+  const tessLang = resolveTesseractLang(appState.ocrLanguage);
+  showStatusBanner(
+    `در حال راه‌اندازی موتور بازشناسی دوزبانه (${tessLang}) تحت مرورگر (حالت استاتیک GitHub Pages)...`,
+    'info'
+  );
   const Tesseract = await loadTesseractForBrowserFallback();
-  const worker = await Tesseract.createWorker('fas');
+  const worker = await Tesseract.createWorker(tessLang);
   try {
-    showStatusBanner('در حال اسکن و استخراج نویسه‌های فارسی از تصویر...', 'info');
+    showStatusBanner('در حال اسکن و استخراج نویسه‌های فارسی و انگلیسی از تصویر...', 'info');
     const { data } = await worker.recognize(imageDataUrl);
     const cleaned = applyFullPersianVirastar((data.text || '').trim());
     return {
       extractedText: cleaned.text,
-      detectedDocumentType: 'سند فارسی (OCR مرورگر)',
+      detectedDocumentType:
+        appState.ocrLanguage === 'persian'
+          ? 'سند فارسی (OCR مرورگر)'
+          : 'سند دوزبانه فارسی و انگلیسی (OCR مرورگر)',
       confidenceEstimate:
         typeof data.confidence === 'number' && data.confidence > 0
           ? Math.min(99, Math.max(78, Math.round(data.confidence)))
           : 93,
-      notes: 'استخراج‌شده با موتور OCR تحت مرورگر و استانداردسازی‌شده با ویراستار فارسی',
+      notes: 'استخراج‌شده با موتور OCR دوزبانه فارسی+انگلیسی تحت مرورگر و استانداردسازی‌شده با ویراستار فارسی',
     };
   } finally {
     await worker.terminate();
@@ -925,7 +960,7 @@ async function handleExtractOcrClick() {
     btn.disabled = true;
     btn.textContent = 'در حال بازشناسی و تایپ هوشمند متن...';
   }
-  showStatusBanner('در حال ارسال تصویر به موتور بازشناسی نویسه فارسی...', 'info');
+  showStatusBanner('در حال ارسال تصویر به موتور بازشناسی دوزبانه (فارسی + انگلیسی)...', 'info');
 
   try {
     let payload = null;
@@ -937,6 +972,7 @@ async function handleExtractOcrClick() {
           imageBase64: appState.imageUrl,
           mimeType: appState.mimeType,
           mode: appState.mode,
+          ocrLanguage: appState.ocrLanguage,
           customPrompt,
         }),
       });
@@ -1057,11 +1093,37 @@ function initNavisaApp() {
   // Load first sample document
   loadSampleById('book-article');
 
+  // Once preloaded Vazirmatn font finishes loading on GitHub Pages, re-render sample canvas cleanly
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      const activeSample = PERSIAN_SAMPLE_DOCUMENTS.find((s) => s.id === appState.activeDocId);
+      if (activeSample) {
+        const crispUrl = renderSampleDocumentToDataUrl(activeSample);
+        appState.imageUrl = crispUrl;
+        const imgEl = document.getElementById('ocrPreviewImage');
+        if (imgEl) imgEl.src = crispUrl;
+      }
+    });
+  }
+
   // Preset Sample Buttons
   document.querySelectorAll('[data-sample]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const sampleId = btn.getAttribute('data-sample');
       if (sampleId) loadSampleById(sampleId);
+    });
+  });
+
+  // OCR Language Buttons (Persian+English Bilingual / Persian Only / English-to-Persian)
+  document.querySelectorAll('[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lang = btn.getAttribute('data-lang');
+      if (lang) {
+        appState.ocrLanguage = lang;
+        syncPresetActiveButtons();
+        updateAllMetricsAndViews();
+        showStatusBanner(`زبان بازشناسی روی «${LANG_LABELS[lang] || lang}» تنظیم شد.`, 'info');
+      }
     });
   });
 

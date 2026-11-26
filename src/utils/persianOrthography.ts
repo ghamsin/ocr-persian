@@ -54,23 +54,35 @@ export function unifyPersianCharacters(input: string): { text: string; count: nu
 }
 
 /**
- * 2. Converts English (0-9) and Arabic-Indic (٠-٩) digits to standard Persian digits (۰-۹).
+ * 2. Converts English (0-9) and Arabic-Indic (٠-٩) digits to standard Persian digits (۰-۹),
+ * while preserving digits embedded inside English/Latin tokens (e.g. UTF-8, v2.4, ISO-9001, URLs).
  */
 export function toPersianDigits(input: string): { text: string; count: number } {
   let count = 0;
-  let result = input.replace(/[0-9]/g, (digit) => {
-    count++;
-    return PERSIAN_DIGITS[Number(digit)];
-  });
 
-  result = result.replace(/[٠-٩]/g, (digit) => {
-    const index = ARABIC_DIGITS.indexOf(digit);
-    if (index !== -1) {
-      count++;
-      return PERSIAN_DIGITS[index];
+  // Tokenize so Latin/URL segments keep their Latin digits intact while standalone/Persian digits convert
+  const result = input.replace(
+    /https?:\/\/[^\s]+|[A-Za-z][A-Za-z0-9._/-]*|[0-9]+|[٠-٩]+/g,
+    (token) => {
+      // Preserve URLs and English/Latin technical tokens (e.g., UTF-8, ISO-9001, v2.4, GPT-4)
+      if (/^(?:https?:\/\/|[A-Za-z])/.test(token)) {
+        return token;
+      }
+      return token
+        .replace(/[0-9]/g, (digit) => {
+          count++;
+          return PERSIAN_DIGITS[Number(digit)];
+        })
+        .replace(/[٠-٩]/g, (digit) => {
+          const index = ARABIC_DIGITS.indexOf(digit);
+          if (index !== -1) {
+            count++;
+            return PERSIAN_DIGITS[index];
+          }
+          return digit;
+        });
     }
-    return digit;
-  });
+  );
 
   return { text: result, count };
 }
