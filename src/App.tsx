@@ -10,6 +10,7 @@ import {
 } from './utils/sampleDocuments';
 import { ExtractionMode, OcrDocumentRecord } from './utils/types';
 import { applyFullPersianVirastar } from './utils/persianOrthography';
+import { runBrowserPersianOcr, safeParseJsonResponse } from './utils/clientSideOcr';
 
 const STORAGE_KEY = 'navisa_persian_ocr_records_v1';
 
@@ -153,43 +154,76 @@ export default function App() {
     setIsExtracting(true);
     setStatusBanner({
       type: 'info',
-      message: 'در حال ارسال تصویر به موتور بازشناسی نویسه فارسی (Gemini OCR)...',
+      message: 'در حال ارسال تصویر به موتور بازشناسی نویسه فارسی...',
     });
 
     try {
-      const response = await fetch('/api/ocr/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: imageUrl,
-          mimeType,
-          mode,
-          customPrompt,
-        }),
-      });
+      let extractedPayload: {
+        extractedText?: string;
+        detectedDocumentType?: string;
+        confidenceEstimate?: number;
+        notes?: string;
+        error?: string;
+      } | null = null;
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'خطا در استخراج متن از تصویر');
+      try {
+        const response = await fetch('./api/ocr/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: imageUrl,
+            mimeType,
+            mode,
+            customPrompt,
+          }),
+        });
+
+        const parsed = await safeParseJsonResponse<{
+          extractedText?: string;
+          detectedDocumentType?: string;
+          confidenceEstimate?: number;
+          notes?: string;
+          error?: string;
+        }>(response);
+
+        if (!parsed.isJson || response.status === 404 || response.status === 405) {
+          // Static hosting environment (such as GitHub Pages) detected — fall back to client-side Persian OCR
+          extractedPayload = await runBrowserPersianOcr(imageUrl, (progressMsg) => {
+            setStatusBanner({ type: 'info', message: progressMsg });
+          });
+        } else if (!response.ok) {
+          throw new Error(parsed.data?.error || 'خطا در استخراج متن از تصویر');
+        } else {
+          extractedPayload = parsed.data;
+        }
+      } catch (networkOrServerErr: unknown) {
+        const errMsg = networkOrServerErr instanceof Error ? networkOrServerErr.message : '';
+        if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+          extractedPayload = await runBrowserPersianOcr(imageUrl, (progressMsg) => {
+            setStatusBanner({ type: 'info', message: progressMsg });
+          });
+        } else {
+          throw networkOrServerErr;
+        }
       }
 
-      const virastarCleaned = applyFullPersianVirastar(data.extractedText || '');
+      const virastarCleaned = applyFullPersianVirastar(extractedPayload?.extractedText || '');
       const finalText = virastarCleaned.text;
 
       setExtractedText(finalText);
-      setConfidence(data.confidenceEstimate || 97);
-      setNotes(data.notes || 'استخراج و ویراستاری خودکار با موفقیت انجام شد.');
+      setConfidence(extractedPayload?.confidenceEstimate || 96);
+      setNotes(extractedPayload?.notes || 'استخراج و ویراستاری خودکار با موفقیت انجام شد.');
 
       const newRecord: OcrDocumentRecord = {
         id: `doc-${Date.now()}`,
         title: documentTitle,
-        categoryLabel: data.detectedDocumentType || 'سند فارسی',
+        categoryLabel: extractedPayload?.detectedDocumentType || 'سند فارسی',
         mode,
         imageUrl,
         mimeType,
         extractedText: finalText,
-        confidence: data.confidenceEstimate || 97,
-        notes: data.notes || 'استخراج‌شده با هوش مصنوعی',
+        confidence: extractedPayload?.confidenceEstimate || 96,
+        notes: extractedPayload?.notes || 'استخراج‌شده با موفقیت',
         createdAt: new Date().toLocaleDateString('fa-IR'),
       };
 
@@ -213,7 +247,7 @@ export default function App() {
     if (!extractedText.trim()) return;
     setIsSmartEditing(true);
     try {
-      const response = await fetch('/api/ocr/smart-edit', {
+      const response = await fetch('./api/ocr/smart-edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -221,11 +255,24 @@ export default function App() {
           action,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'خطا در بازخوانی هوشمند متن');
+
+      const parsed = await safeParseJsonResponse<{ resultText?: string; error?: string }>(response);
+
+      if (!parsed.isJson || response.status === 404 || response.status === 405) {
+        // Static hosting fallback (GitHub Pages): run full local Persian Virastar engine
+        const refined = applyFullPersianVirastar(extractedText);
+        setExtractedText(refined.text);
+        setStatusBanner({
+          type: 'success',
+          message: `در حالت میزبانی استاتیک (GitHub Pages)، ویراستار محلی فارسی اجرا شد و ${refined.fixesCount.toLocaleString('fa-IR')} اصلاح نگارشی اعمال گردید.`,
+        });
+        return;
       }
-      const refined = applyFullPersianVirastar(data.resultText || extractedText);
+
+      if (!response.ok) {
+        throw new Error(parsed.data?.error || 'خطا در بازخوانی هوشمند متن');
+      }
+      const refined = applyFullPersianVirastar(parsed.data?.resultText || extractedText);
       setExtractedText(refined.text);
       setStatusBanner({
         type: 'success',

@@ -77,3 +77,24 @@ test('executeWithModelFallback succeeds on second attempt of primary model if sp
   assert.equal(usedModel, 'gemini-4-hydrogen');
   assert.equal(totalAttempts, 2);
 });
+
+test('safeParseJsonResponse gracefully handles HTML 404 pages returned by GitHub Pages static hosting', async () => {
+  const { safeParseJsonResponse } = await import('./clientSideOcr');
+
+  const html404Response = new Response('<!DOCTYPE html><html><body>404 Not Found</body></html>', {
+    status: 404,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
+  const htmlParsed = await safeParseJsonResponse(html404Response);
+  assert.equal(htmlParsed.isJson, false);
+  assert.equal(htmlParsed.data, null);
+
+  const jsonResponse = new Response(JSON.stringify({ extractedText: 'سلام دنیا' }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+  const jsonParsed = await safeParseJsonResponse<{ extractedText: string }>(jsonResponse);
+  assert.equal(jsonParsed.isJson, true);
+  assert.equal(jsonParsed.data?.extractedText, 'سلام دنیا');
+});
+
