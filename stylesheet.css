@@ -674,11 +674,12 @@ input[type="number"] {
   flex-direction: column;
   gap: 0.625rem;
   min-height: 370px;
+  min-width: 0;
 }
 
 .find-replace-bar {
   display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
   gap: 0.45rem;
   align-items: center;
   background-color: var(--bg-subtle);
@@ -688,6 +689,8 @@ input[type="number"] {
 }
 
 .find-replace-bar input {
+  width: 100%;
+  min-width: 0;
   min-height: 34px;
   padding: 0.3rem 0.6rem;
   font-family: var(--font-sans);
