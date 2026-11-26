@@ -11,11 +11,363 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Relative path for full GitHub Pages root & subdirectory compatibility -->
+    <link rel="stylesheet" href="./stylesheet.css" />
   </head>
-  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-teal-700 selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
+  <body>
+    <header class="top-bar">
+      <a href="#workspace" class="brand-wordmark">نویسا — استخراج هوشمند متن فارسی از تصویر (OCR)</a>
+      <nav class="top-nav" aria-label="ناوبری اصلی">
+        <a href="#parameters-panel" class="nav-link">بارگذاری و ویراستار</a>
+        <a href="#ocr-visualizer" class="nav-link">میز ویرایش و تصویر</a>
+        <a href="#orthography-analysis" class="nav-link">تحلیل نگارش و نیم‌فاصله</a>
+        <a href="#live-matrix-section" class="nav-link">آرشیو و مقایسه اسناد</a>
+      </nav>
+      <div class="top-action">
+        <button type="button" id="toggleThemeBtn" class="btn-theme-toggle" aria-pressed="false" onclick="toggleThemeMode()">
+          حالت تیره
+        </button>
+        <button type="button" id="toggleViewportModeBtn" class="btn-viewport-toggle" aria-pressed="false" onclick="toggleMobileDesktopMode()">
+          نمایش نسخه موبایل
+        </button>
+      </div>
+    </header>
+
+    <main id="workspace" class="workspace-container">
+      <!-- KPI Strip: 4 Primary Real-Time Metrics -->
+      <section class="kpi-strip" aria-label="خلاصه شاخص‌های زنده متن فارسی">
+        <div class="kpi-block">
+          <span class="kpi-label">تعداد کلمات تایپ‌شده</span>
+          <div class="kpi-value-row">
+            <strong id="kpiWordCount" class="kpi-number">92</strong>
+            <span class="kpi-unit">کلمه فارسی</span>
+          </div>
+          <span id="kpiCharLineMeta" class="kpi-meta">439 نویسه · 5 سطر</span>
+        </div>
+
+        <div class="kpi-block">
+          <span class="kpi-label">نیم‌فاصله‌های استاندارد (ZWNJ)</span>
+          <div class="kpi-value-row">
+            <strong id="kpiZwnjCount" class="kpi-number">0</strong>
+            <span class="kpi-unit">نیم‌فاصله فعال</span>
+          </div>
+          <span id="kpiMissingZwnjMeta" class="kpi-meta">پیشنهاد اصلاح نیم‌فاصله: 8 مورد</span>
+        </div>
+
+        <div class="kpi-block">
+          <span class="kpi-label">سلامت یونیکد و حروف فارسی</span>
+          <div class="kpi-value-row">
+            <strong id="kpiUnicodeHealth" class="kpi-number">90%</strong>
+          </div>
+          <span id="kpiArabicCharsMeta" class="kpi-meta">حروف عربی (ي/ك) باقی‌مانده: 10</span>
+        </div>
+
+        <div class="kpi-block">
+          <span class="kpi-label">دقت بازشناسی نویسه (OCR)</span>
+          <div class="kpi-value-row">
+            <strong id="kpiConfidence" class="kpi-number low-waste-text">98.4%</strong>
+          </div>
+          <span id="kpiActiveModeMeta" class="kpi-meta">حالت فعال: متن چاپی و کتاب</span>
+        </div>
+      </section>
+
+      <!-- Main 2-Column Workspace -->
+      <div class="workspace-grid">
+        <!-- Right Column (in RTL): Form Controls, Sample Presets & Virastar Tools -->
+        <section id="parameters-panel" class="panel form-panel" aria-labelledby="form-heading">
+          <div class="panel-header">
+            <div class="panel-header-top">
+              <h1 id="form-heading" class="panel-title">تنظیمات تصویر، بازشناسی و ویراستار فارسی</h1>
+              <button type="button" id="resetDefaultBtn" class="btn-secondary">بازنشانی نمونه</button>
+            </div>
+            <p class="panel-subtitle">
+              با انتخاب نمونه‌های آماده، بارگذاری عکس یا جای‌گذاری (Ctrl+V)، متن فارسی را استخراج و استانداردسازی کنید.
+            </p>
+          </div>
+
+          <!-- Section 1: Samples & Upload -->
+          <div class="field-section">
+            <div class="section-header-row">
+              <span class="section-label">۱. انتخاب نمونه آماده یا بارگذاری تصویر</span>
+              <span class="section-hint">PNG / JPG / Ctrl+V</span>
+            </div>
+            <div class="preset-grid-2" style="margin-bottom: 0.75rem;">
+              <button type="button" class="preset-btn active" data-sample="book-article">کتاب و مقاله چاپی</button>
+              <button type="button" class="preset-btn" data-sample="handwriting-note">دست‌خط و یادداشت</button>
+              <button type="button" class="preset-btn" data-sample="invoice-table">فاکتور و جدول اداری</button>
+              <button type="button" class="preset-btn" data-sample="classical-poetry">شعر و متون معرب</button>
+            </div>
+            <div class="input-pair">
+              <button type="button" id="triggerFileUploadBtn" class="btn-secondary">انتخاب فایل تصویر</button>
+              <button type="button" id="openCameraBtn" class="btn-secondary">اسکن با دوربین</button>
+              <input type="file" id="imageFileInput" accept="image/*" aria-label="انتخاب فایل تصویر" style="display: none;" />
+            </div>
+          </div>
+
+          <!-- Section 2: Specialized Persian OCR Mode -->
+          <div class="field-section">
+            <div class="section-header-row">
+              <span class="section-label">۲. حالت تخصصی بازشناسی متن فارسی</span>
+              <span class="section-hint">OCR Mode</span>
+            </div>
+            <div class="preset-grid-2" style="margin-bottom: 0.75rem;">
+              <button type="button" class="preset-btn active" data-mode="standard">متن چاپی و کتاب</button>
+              <button type="button" class="preset-btn" data-mode="structured">فاکتور و جدول (MD)</button>
+              <button type="button" class="preset-btn" data-mode="handwriting">دست‌خط و یادداشت</button>
+              <button type="button" class="preset-btn" data-mode="poetry">شعر و حفظ اعراب</button>
+            </div>
+            <div class="input-group">
+              <label for="customPromptInput">دستور تکمیلی برای استخراج (اختیاری):</label>
+              <input
+                type="text"
+                id="customPromptInput"
+                placeholder="مثال: فقط جدول قیمت‌ها را استخراج کن یا پاورقی را نادیده بگیر..."
+              />
+            </div>
+          </div>
+
+          <!-- Section 3: One-Click Persian Virastar Engine -->
+          <div class="field-section">
+            <div class="section-header-row">
+              <span class="section-label">۳. موتور ویراستار و اصلاح نیم‌فاصله فارسی</span>
+              <span class="section-hint">ZWNJ &amp; Unicode</span>
+            </div>
+            <button
+              type="button"
+              id="runFullVirastarBtn"
+              class="btn-primary"
+              style="margin-bottom: 0.625rem;"
+            >
+              ویراستار جامع فارسی (نیم‌فاصله + ی/ک + ارقام + نگارش)
+            </button>
+            <div class="preset-grid-2">
+              <button type="button" id="fixZwnjBtn" class="preset-btn">اصلاح نیم‌فاصله‌ها (8)</button>
+              <button type="button" id="unifyCharsBtn" class="preset-btn">استانداردسازی ی و ک (10)</button>
+              <button type="button" id="toPersianDigitsBtn" class="preset-btn">تبدیل به ارقام فارسی</button>
+              <button type="button" id="toEnglishDigitsBtn" class="preset-btn">تبدیل به ارقام انگلیسی</button>
+              <button type="button" id="stripDiacriticsBtn" class="preset-btn">حذف اعراب و حرکات</button>
+              <button type="button" id="fixPunctuationBtn" class="preset-btn">اصلاح گیومه «» و نگارش</button>
+            </div>
+          </div>
+
+          <!-- Section 4: Optical Scan Controls -->
+          <div class="field-section">
+            <div class="section-header-row">
+              <span class="section-label">۴. تنظیمات اپتیکی تصویر اسکن‌شده</span>
+              <span class="section-hint">Zoom &amp; Contrast</span>
+            </div>
+            <div class="input-pair">
+              <div class="input-group">
+                <label for="zoomInput">بزرگ‌نمایی تصویر (%):</label>
+                <input type="number" id="zoomInput" value="100" min="50" max="200" step="10" />
+                <input type="range" id="zoomSlider" class="live-slider" min="50" max="200" step="10" value="100" aria-label="اسلایدر بزرگ‌نمایی تصویر" />
+              </div>
+              <div class="input-group">
+                <label for="rotationInput">چرخش و کنتراست اسکن:</label>
+                <input type="number" id="rotationInput" value="0" readonly aria-label="زاویه چرخش تصویر" />
+                <div class="preset-bar" style="margin-top: 0.25rem;">
+                  <button type="button" id="rotateImageBtn" class="preset-btn" style="flex: 1;">چرخش ۹۰°</button>
+                  <button type="button" id="toggleContrastBtn" class="preset-btn" style="flex: 1;">کنتراست اسکن</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Primary OCR & Word Actions -->
+          <div class="form-actions">
+            <button type="button" id="extractOcrBtn" class="btn-primary">
+              استخراج هوشمند متن از تصویر (OCR)
+            </button>
+            <button type="button" id="downloadWordBtn" class="btn-export-pdf">
+              خروجی مستقیم Word (DOC)
+            </button>
+          </div>
+
+          <div id="ocrStatusBanner" role="status" class="pdf-export-status status-success">
+            نمونه «صفحه کتاب: تاریخچه خط و چاپ در ایران» آماده است. روی «ویراستار جامع فارسی» کلیک کنید تا اصلاح خودکار نیم‌فاصله‌ها را ببینید.
+          </div>
+        </section>
+
+        <!-- Left Column (in RTL): Split Image + Persian Text Editor, Orthographic Analysis & Archive Table -->
+        <div class="left-column-stack">
+          <!-- Top Panel: Dynamic Image Preview & Persian Text Editor -->
+          <section id="ocr-visualizer" class="panel visualizer-panel" aria-labelledby="visualizer-heading">
+            <div class="visualizer-header">
+              <div>
+                <h2 id="visualizer-heading" class="panel-title">پیش‌نمایش دینامیک تصویر سند و میز ویرایش متن فارسی</h2>
+                <p id="visualizerSummaryText" class="panel-subtitle">
+                  صفحه کتاب: تاریخچه خط و چاپ در ایران · دقت تخمینی: 98.4% · آماده ویرایش و خروجی
+                </p>
+              </div>
+              <div class="visualizer-controls">
+                <div class="segmented-control" role="group" aria-label="حالت نمایش میز کار">
+                  <button type="button" class="segment-btn active" data-view="split">نمایش همزمان</button>
+                  <button type="button" class="segment-btn" data-view="editor">تمرکز روی متن</button>
+                  <button type="button" class="segment-btn" data-view="image">تمرکز روی تصویر</button>
+                </div>
+                <button type="button" id="toggleZwnjInspectorBtn" class="btn-wire inactive">
+                  کالبدشکافی نیم‌فاصله‌ها
+                </button>
+              </div>
+            </div>
+
+            <!-- Split Stage: Image Preview + Persian RTL Editor -->
+            <div id="ocrSplitStage" class="ocr-split-stage">
+              <!-- Image Pane -->
+              <div id="imagePreviewPane" class="sheet-canvas-wrapper">
+                <img
+                  id="ocrPreviewImage"
+                  class="ocr-preview-img"
+                  alt="پیش‌نمایش تصویر سند فارسی"
+                />
+              </div>
+
+              <!-- Editor Pane -->
+              <div id="editorPreviewPane" class="editor-pane-box">
+                <div class="find-replace-bar">
+                  <input type="text" id="findInput" placeholder="جستجوی کلمه در متن..." aria-label="جستجوی کلمه در متن" />
+                  <input type="text" id="replaceInput" placeholder="جایگزینی با..." aria-label="جایگزینی با" />
+                  <button type="button" id="replaceAllBtn" class="preset-btn active">جایگزینی</button>
+                  <button type="button" id="undoEditBtn" class="preset-btn">بازگردانی</button>
+                </div>
+
+                <textarea
+                  id="persianOcrTextarea"
+                  class="ocr-textarea"
+                  dir="rtl"
+                  aria-label="متن فارسی استخراج شده قابل ویرایش"
+                  placeholder="متن استخراج‌شده از تصویر در این کادر نمایش داده می‌شود..."
+                ></textarea>
+
+                <div
+                  id="zwnjInspectorView"
+                  class="zwnj-inspector-box"
+                  style="display: none;"
+                  aria-label="نمای کالبدشکافی نیم‌فاصله‌ها"
+                ></div>
+
+                <div class="editor-bottom-actions">
+                  <div class="preset-bar">
+                    <button type="button" id="copyTextBtn" class="preset-btn active">کپی متن فارسی</button>
+                    <button type="button" id="downloadTxtBtn" class="preset-btn">دانلود TXT</button>
+                    <button type="button" id="downloadMdBtn" class="preset-btn">دانلود Markdown</button>
+                  </div>
+                  <span class="section-hint">راست‌به‌چپ استاندارد (UTF-8)</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="liveTextInspectorBar" class="cell-inspector-bar">
+              وضعیت نگارش: در حال بررسی نیم‌فاصله‌ها و نویسه‌های استاندارد فارسی...
+            </div>
+
+            <div class="canvas-footer">
+              <div class="utilization-bar-track" aria-hidden="true">
+                <div id="orthographyHealthBar" class="bar-fill-efficiency" style="width: 90%;"></div>
+                <div id="orthographyIssueBar" class="bar-fill-waste" style="width: 10%;"></div>
+              </div>
+              <div class="legend-items">
+                <span class="legend-item">
+                  <span class="legend-swatch swatch-product"></span>
+                  متن استاندارد و نیم‌فاصله‌های صحیح فارسی
+                </span>
+                <span aria-hidden="true">·</span>
+                <span class="legend-item">
+                  <span class="legend-swatch swatch-gap"></span>
+                  ارقام و علائم سجاوندی («»، ، ؛)
+                </span>
+                <span aria-hidden="true">·</span>
+                <span class="legend-item">
+                  <span class="legend-swatch swatch-waste"></span>
+                  حروف عربی (ي/ك) یا نیم‌فاصله‌های جاافتاده
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Middle Panel: Detailed Orthography & Quality Breakdown -->
+          <section id="orthography-analysis" class="panel breakdown-panel" aria-labelledby="breakdown-heading">
+            <div class="breakdown-header">
+              <div>
+                <h2 id="breakdown-heading" class="panel-title">جدول تفکیک شاخص‌های نگارشی، نیم‌فاصله و کیفیت استخراج متن</h2>
+                <p class="panel-subtitle">بررسی لحظه‌ای استاندارد یونیکد ملی ایران، تراکم نیم‌فاصله‌ها و زمان مطالعه</p>
+              </div>
+            </div>
+
+            <div class="metrics-table">
+              <div class="metric-row highlight-row">
+                <span class="metric-name">تعداد کل کلمات و نویسه‌های متن استخراج‌شده</span>
+                <span id="detailWordCharCount" class="metric-val mono-num">92 کلمه (439 نویسه در 5 سطر)</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-name">تعداد نیم‌فاصله‌های استاندارد (ZWNJ) فعال در متن</span>
+                <span id="detailActiveZwnj" class="metric-val mono-num">0 نیم‌فاصله فعال</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-name">پیشنهادهای باقی‌مانده برای اصلاح خودکار نیم‌فاصله</span>
+                <span id="detailPendingZwnj" class="metric-val mono-num">8 مورد نیازمند اصلاح</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-name">نویسه‌های عربی غیرمعیار (ي / ك) شناسایی‌شده در متن</span>
+                <span id="detailArabicChars" class="metric-val mono-num">10 نویسه عربی (ي/ك)</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-name">زمان تخمینی مطالعه متن تایپ‌شده</span>
+                <span id="detailReadingTime" class="metric-val mono-num">حدود 31 ثانیه</span>
+              </div>
+              <div class="metric-row highlight-row">
+                <span class="metric-name">وضعیت نهایی استانداردسازی و آمادگی چاپ/انتشار</span>
+                <span id="detailOverallStatus" class="metric-val low-waste-text">آماده ویراستاری خودکار با یک کلیک</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Bottom Panel: Live Archive & Sample Documents Comparison Matrix -->
+          <section id="live-matrix-section" class="panel matrix-panel" aria-labelledby="matrix-heading">
+            <div class="breakdown-header">
+              <div>
+                <h2 id="matrix-heading" class="panel-title">
+                  آرشیو و مقایسه اسناد فارسی آماده و پردازش‌شده
+                </h2>
+                <p class="panel-subtitle">
+                  دسترسی سریع به نمونه‌های استاندارد کتاب، دست‌خط، فاکتور رسمی، شعر معرب و تصاویر بارگذاری‌شده
+                </p>
+              </div>
+            </div>
+            <div class="table-scroll-wrapper">
+              <table class="comparison-table">
+                <thead>
+                  <tr>
+                    <th>عنوان سند</th>
+                    <th>نوع بازشناسی</th>
+                    <th>تعداد کلمات</th>
+                    <th>نیم‌فاصله</th>
+                    <th>دقت OCR</th>
+                    <th>عملیات</th>
+                  </tr>
+                </thead>
+                <tbody id="liveOcrMatrixBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Camera Modal -->
+    <div id="cameraModalBackdrop" class="camera-modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-label="اسکن تصویر با دوربین">
+      <div class="camera-modal-box">
+        <div class="panel-header-top">
+          <h3 class="panel-title">ثبت تصویر سند با دوربین</h3>
+          <button type="button" id="closeCameraModalBtn" class="btn-secondary">بستن</button>
+        </div>
+        <video id="cameraVideoEl" class="camera-video" autoplay playsinline></video>
+        <button type="button" id="captureCameraPhotoBtn" class="btn-primary">ثبت عکس و انتقال به میز کار</button>
+      </div>
+    </div>
+
+    <!-- Relative path for full GitHub Pages root & subdirectory compatibility -->
+    <script src="./script.js"></script>
   </body>
 </html>
-

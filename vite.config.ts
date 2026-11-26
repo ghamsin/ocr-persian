@@ -26,6 +26,13 @@ export default defineConfig(() => {
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
           }
+          for (const rootAsset of ['stylesheet.css', 'script.js']) {
+            const srcFile = path.resolve(__dirname, rootAsset);
+            const destFile = path.resolve(distDir, rootAsset);
+            if (fs.existsSync(distDir) && fs.existsSync(srcFile)) {
+              fs.cpSync(srcFile, destFile, {force: true});
+            }
+          }
         },
       },
     ],
